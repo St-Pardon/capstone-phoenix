@@ -26,6 +26,9 @@ id_rsa*
 # argo / helm local
 charts/*.tgz
 
+# personal/local notes (not deliverables) — e.g. cloud setup cheat-sheets
+notes/
+
 # os / editor
 .DS_Store
 *.swp
