@@ -11,3 +11,5 @@ commonLabels:
 resources:
   - namespace.yaml
   - configmap.yaml
+  - postgres-statefulset.yaml
+  - postgres-svc.yaml
