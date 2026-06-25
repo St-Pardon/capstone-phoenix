@@ -1,0 +1,27 @@
+# App-of-apps: the ONE Application you apply by hand after installing Argo CD. It syncs every
+# Application in gitops/apps/, and their sync-waves order the rollout: ingress-nginx (-2) ->
+# cert-manager (-1) -> taskapp (0). From here, GitOps owns the cluster.
+#
+# Bootstrap (out-of-band, once — documented in docs/RUNBOOK.md):
+#   kubectl create namespace argocd
+#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+#   kubectl apply -f gitops/root-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: phoenix-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # TODO: point at YOUR fork.
+    repoURL: https://github.com/CHANGEME/capstone-phoenix.git
+    targetRevision: main
+    path: gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
