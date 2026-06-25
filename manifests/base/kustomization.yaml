@@ -14,3 +14,5 @@ resources:
   - postgres-statefulset.yaml
   - postgres-svc.yaml
   - migration-job.yaml
+  - backend-deploy.yaml
+  - backend-svc.yaml
