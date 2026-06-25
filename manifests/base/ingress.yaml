@@ -1,0 +1,33 @@
+# Same-origin routing on ONE host: / -> frontend, /api -> backend. One TLS cert, one DNS record,
+# no CORS. cert-manager fills the taskapp-tls secret from the Issuer via an HTTP-01 challenge.
+# Host is a placeholder — overlays/prod patches it to your real domain.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: taskapp
+  annotations:
+    cert-manager.io/issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - taskapp.example.com
+      secretName: taskapp-tls
+  rules:
+    - host: taskapp.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: taskapp-backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: taskapp-frontend
+                port:
+                  number: 80
