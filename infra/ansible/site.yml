@@ -1,0 +1,49 @@
+---
+# Bare OCI VMs -> working k3s cluster. Run from infra/ansible/ after generating the inventory:
+#   ./inventory/generate-inventory.sh
+#   ansible-playbook site.yml
+# A second run must report changed=0 (idempotent).
+
+- name: Base hardening (all nodes)
+  hosts: k3s_cluster
+  gather_facts: true
+  roles:
+    - hardening
+
+- name: Install k3s control-plane
+  hosts: server
+  gather_facts: true
+  roles:
+    - k3s-server
+
+- name: Join k3s workers
+  hosts: agents
+  gather_facts: true
+  vars:
+    server_private_ip: "{{ hostvars[groups['server'][0]].private_ip }}"
+    k3s_node_token: "{{ hostvars[groups['server'][0]].k3s_node_token }}"
+  roles:
+    - k3s-agent
+
+- name: Fetch kubeconfig to the operator machine
+  hosts: server
+  gather_facts: false
+  tasks:
+    - name: Read kubeconfig from the server
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: _kubeconfig
+
+    - name: Write kubeconfig locally with the public API endpoint
+      ansible.builtin.copy:
+        dest: "{{ kubeconfig_local_path }}"
+        mode: "0600"
+        content: >-
+          {{ _kubeconfig.content | b64decode
+             | replace('https://127.0.0.1:6443', 'https://' + public_ip + ':6443') }}
+      delegate_to: localhost
+      become: false
+
+    - name: How to use it
+      ansible.builtin.debug:
+        msg: "export KUBECONFIG={{ kubeconfig_local_path }} && kubectl get nodes -o wide"
