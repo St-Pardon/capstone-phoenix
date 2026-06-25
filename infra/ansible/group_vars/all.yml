@@ -1,0 +1,13 @@
+# Connection — OCI Ubuntu images ship a non-root, key-only sudo user named `ubuntu`; that is
+# our hardened admin user (the hardening role then locks down sshd further).
+ansible_user: ubuntu
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_private_key_file: "~/.ssh/oci_phoenix"
+
+# k3s version control. Leave k3s_version empty to track the channel; set it (e.g.
+# "v1.31.4+k3s1") to pin a reproducible version.
+k3s_channel: "stable"
+k3s_version: ""
+
+# Where the fetched kubeconfig is written on YOUR machine (gitignored by *kubeconfig*).
+kubeconfig_local_path: "{{ playbook_dir }}/kubeconfig"

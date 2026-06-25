@@ -29,6 +29,10 @@ charts/*.tgz
 # personal/local notes (not deliverables) — e.g. cloud setup cheat-sheets
 notes/
 
+# ansible generated (IPs change every apply — generate from terraform outputs, don't commit)
+infra/ansible/inventory/hosts.yml
+*.retry
+
 # os / editor
 .DS_Store
 *.swp
