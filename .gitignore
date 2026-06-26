@@ -19,6 +19,9 @@ node-token
 !.env.example
 *secret*.yaml
 !*secret*.example.yaml
+# Sealed Secrets are encrypted with the cluster's public key — safe (and meant) to commit.
+# Also re-includes the sealed-secrets Argo Application + seal helper that match *secret*.
+!*sealed*secret*.yaml
 *.pem
 *.key
 id_rsa*
