@@ -1,6 +1,9 @@
 # Migrations run here, ONCE per deploy — never in the replicas' entrypoint (2+ backend replicas
-# would race on `alembic upgrade head`). The Argo CD PreSync hook runs this before the app syncs;
-# BeforeHookCreation deletes the previous run so the Job (immutable) can be recreated each time.
+# would race on `alembic upgrade head`). This is a Sync hook at wave -1: it runs AFTER the
+# ConfigMap (-3) and Postgres (-2, waited to Healthy) and BEFORE the backend pods (wave 0), so the
+# DB exists and is reachable on first bootstrap. A PreSync hook can't do this — it runs before any
+# normal resource, so neither the ConfigMap nor Postgres would exist yet.
+# BeforeHookCreation deletes the previous run so the Job (immutable) can be recreated each sync.
 # `alembic upgrade head` is idempotent, so re-running on every sync is safe.
 apiVersion: batch/v1
 kind: Job
@@ -9,7 +12,8 @@ metadata:
   labels:
     app.kubernetes.io/name: migrate
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "-1"
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 3

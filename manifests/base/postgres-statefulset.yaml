@@ -4,6 +4,9 @@ metadata:
   name: taskapp-postgres
   labels:
     app.kubernetes.io/name: postgres
+  annotations:
+    # Comes up (and goes Healthy) before the migrate hook at wave -1 connects to it.
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   serviceName: taskapp-postgres
   replicas: 1

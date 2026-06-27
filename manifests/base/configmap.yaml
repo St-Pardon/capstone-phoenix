@@ -3,6 +3,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: taskapp-config
+  annotations:
+    # Must exist before the Postgres StatefulSet and the migrate hook consume it.
+    argocd.argoproj.io/sync-wave: "-3"
 data:
   POSTGRES_DB: taskapp
   POSTGRES_HOST: taskapp-postgres
