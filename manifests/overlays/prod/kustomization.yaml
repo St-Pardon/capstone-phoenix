@@ -20,14 +20,14 @@ patches:
     patch: |-
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: taskapp.CHANGEME.dev
+        value: onyedikachi-capston.st-pardon.com
       - op: replace
         path: /spec/rules/0/host
-        value: taskapp.CHANGEME.dev
+        value: onyedikachi-capston.st-pardon.com
   - target:
       kind: Issuer
       name: letsencrypt-prod
     patch: |-
       - op: replace
         path: /spec/acme/email
-        value: CHANGEME@example.com
+        value: okc4pardon@gmail.com
