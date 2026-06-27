@@ -13,6 +13,12 @@
 **App under test:** TaskApp — React/nginx frontend, Flask/Postgres backend, GHCR images
 `ghcr.io/ts-a-devops/taskapp-backend`, `ghcr.io/ts-a-devops/taskapp-frontend`.
 
+> **Submission status (St-Pardon).** Live on a 3-node OCI k3s cluster, GitOps-owned by Argo CD:
+> - Frontend: **https://onyedikachi-capston.st-pardon.com** · API: **https://api.st-pardon.com** (real Let's Encrypt TLS)
+> - Done: all **Core**, **4 Advanced** (HPA · NetworkPolicy · PDB+graceful-shutdown · securityContext), **GitOps**, CI tag-bump.
+> - Proof in [`docs/EVIDENCE/`](docs/EVIDENCE/) (nodes, pod-spread, TLS, PVC-persist, zero-downtime, HPA, failover).
+> - See the checklist in §4 below for the per-item status.
+
 ---
 
 ## 1. What you're given vs. what you build
@@ -74,45 +80,45 @@ Write a playbook (roles!) that turns bare VMs into a working cluster:
 This is the heart of it. Everything in the K8s lesson, done *for real*, plus hardening.
 
 ### Core (must have — non-negotiable)
-- [ ] Dedicated **namespace**; **ConfigMap** (non-secret) + **Secret** (secret), split the
+- [x] Dedicated **namespace**; **ConfigMap** (non-secret) + **Secret** (secret), split the
       same way your Compose deploy split committed `.env` vs Portainer env vars.
-- [ ] **Postgres as a StatefulSet** with a **PVC** (real persistent storage on the cluster's
+- [x] **Postgres as a StatefulSet** with a **PVC** (real persistent storage on the cluster's
       storage class). Prove data survives a Pod delete.
-- [ ] **Backend + frontend as Deployments**, **2+ replicas each**, spread across **different
+- [x] **Backend + frontend as Deployments**, **2+ replicas each**, spread across **different
       nodes** (`topologySpreadConstraints` or pod anti-affinity — don't let both replicas land
       on one node).
-- [ ] **Migrations as a Job/initContainer**, *not* in the running replicas' entrypoint. Solve
+- [x] **Migrations as a Job/initContainer**, *not* in the running replicas' entrypoint. Solve
       the race: running migrations in the entrypoint is fine for a single replica, but at
       2+ replicas they race on `alembic upgrade head`.
-- [ ] **liveness + readiness + startup probes** on every workload, using the app's real
+- [x] **liveness + readiness + startup probes** on every workload, using the app's real
       endpoints (`/api/health`, `/healthz`, `pg_isready`).
-- [ ] **resources.requests + limits** on every container.
-- [ ] **RollingUpdate with `maxUnavailable: 0`** — prove zero dropped requests during a deploy.
-- [ ] **Ingress + TLS** via cert-manager + Let's Encrypt on **your real domain**
+- [x] **resources.requests + limits** on every container.
+- [x] **RollingUpdate with `maxUnavailable: 0`** — prove zero dropped requests during a deploy.
+- [x] **Ingress + TLS** via cert-manager + Let's Encrypt on **your real domain**
       (`taskapp.<you>.dev` and `api.<you>.dev`, or same-origin `/api` — justify your choice).
       A valid public certificate, not self-signed.
-- [ ] **Pinned image tags** (commit SHA or semver). `:latest` anywhere = automatic fail.
+- [x] **Pinned image tags** (commit SHA or semver). `:latest` anywhere = automatic fail.
 
 ### Advanced (required for a distinction — pick **at least 3**)
-- [ ] **HPA** on the backend (CPU and/or memory), demonstrated under a load test with graphs/logs.
-- [ ] **NetworkPolicy**: default-deny in the namespace; Postgres only reachable from the
+- [x] **HPA** on the backend (CPU and/or memory), demonstrated under a load test with graphs/logs.
+- [x] **NetworkPolicy**: default-deny in the namespace; Postgres only reachable from the
       backend; backend only from the frontend/ingress. (k3s ships Traefik + you'll need a CNI
       that enforces policy — document your choice.)
-- [ ] **PodDisruptionBudget** + graceful shutdown (`terminationGracePeriodSeconds`, SIGTERM
+- [x] **PodDisruptionBudget** + graceful shutdown (`terminationGracePeriodSeconds`, SIGTERM
       handling) so node drains don't drop the app.
 - [ ] **Observability**: metrics-server + a dashboard (kube-prometheus-stack, or at minimum
       Grafana/Prometheus) showing CPU/mem/replicas/request rate. Screenshots in `docs/`.
-- [ ] **Resource hardening**: `securityContext` (runAsNonRoot, readOnlyRootFilesystem where
+- [x] **Resource hardening**: `securityContext` (runAsNonRoot, readOnlyRootFilesystem where
       possible, drop capabilities), `seccompProfile: RuntimeDefault`.
 
 ### GitOps (required — this is the Portainer-GitOps idea, leveled up)
-- [ ] Install **Argo CD** (or Flux) on the cluster. Your app's desired state lives in this
+- [x] Install **Argo CD** (or Flux) on the cluster. Your app's desired state lives in this
       git repo; the controller syncs it. **Your final, graded state must be reconciled by
       GitOps — not by you running `kubectl apply` by hand.** Show a commit → auto-sync → live
       change. This is the direct successor to your Portainer push-to-redeploy.
 
 ### Stretch (bonus — for the strong)
-- [ ] CI that builds/pushes a new image and **bumps the tag in the GitOps repo** (full
+- [x] CI that builds/pushes a new image and **bumps the tag in the GitOps repo** (full
       git-driven deploy, mirroring your `cd.yaml`).
 - [ ] Sealed Secrets / External Secrets so the Secret can live in git safely.
 - [ ] Automated Postgres backup (CronJob → object storage) + a documented restore test.
