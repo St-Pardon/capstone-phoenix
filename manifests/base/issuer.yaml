@@ -15,3 +15,10 @@ spec:
       - http01:
           ingress:
             ingressClassName: nginx
+            # The allow-acme-solver-from-ingress NetworkPolicy selects part-of=taskapp (kustomize
+            # commonLabels injects it into the selector). cert-manager's solver pod isn't built by
+            # kustomize, so stamp the label here or default-deny blocks ingress-nginx → 502.
+            podTemplate:
+              metadata:
+                labels:
+                  app.kubernetes.io/part-of: taskapp
