@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Pin image tags here — NEVER :latest. Replace the newTag values with the commit SHA / semver
+# your CI publishes to GHCR (the CI-bumps-this-tag flow is the brief's stretch goal).
+images:
+  - name: ghcr.io/ts-a-devops/taskapp-backend
+    newTag: REPLACE_WITH_SHA_OR_SEMVER
+  - name: ghcr.io/ts-a-devops/taskapp-frontend
+    newTag: REPLACE_WITH_SHA_OR_SEMVER
+
+# Environment knobs — set your real domain and ACME email here.
+patches:
+  - target:
+      kind: Ingress
+      name: taskapp
+    patch: |-
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: taskapp.CHANGEME.dev
+      - op: replace
+        path: /spec/rules/0/host
+        value: taskapp.CHANGEME.dev
+  - target:
+      kind: Issuer
+      name: letsencrypt-prod
+    patch: |-
+      - op: replace
+        path: /spec/acme/email
+        value: CHANGEME@example.com

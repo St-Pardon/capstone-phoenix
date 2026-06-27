@@ -1,0 +1,20 @@
+# Autoscale the backend on CPU. Requires metrics-server (platform add-on) and the resource
+# requests already set on the backend container. min=2 keeps the HA floor; demo it under load.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: taskapp-backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: taskapp-backend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

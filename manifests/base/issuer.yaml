@@ -1,0 +1,17 @@
+# Namespaced Issuer (not ClusterIssuer) — keeps everything in the taskapp namespace and avoids
+# the kustomize namespace-transformer clash with a cluster-scoped resource. HTTP-01 solver over
+# ingress-nginx on port 80. Email is a placeholder — overlays/prod patches it.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: you@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

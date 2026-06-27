@@ -1,0 +1,10 @@
+# Non-secret config — the committed half of the old `.env`. Safe to live in git/GitOps.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taskapp-config
+data:
+  POSTGRES_DB: taskapp
+  POSTGRES_HOST: taskapp-postgres
+  POSTGRES_PORT: "5432"
+  FLASK_ENV: production
