@@ -1,6 +1,7 @@
-# Same-origin routing on ONE host: / -> frontend, /api -> backend. One TLS cert, one DNS record,
-# no CORS. cert-manager fills the taskapp-tls secret from the Issuer via an HTTP-01 challenge.
-# Host is a placeholder — overlays/prod patches it to your real domain.
+# Base = same-origin routing on ONE host: / -> frontend, /api -> backend. One TLS cert, no CORS.
+# cert-manager fills the taskapp-tls secret from the Issuer via an HTTP-01 challenge.
+# Host is a placeholder — overlays/prod patches it to onyedikachi-capston.st-pardon.com AND adds
+# a second host api.st-pardon.com -> backend (with its own taskapp-api-tls cert).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

@@ -76,12 +76,23 @@ Argo now syncs by sync-wave: **ingress-nginx (-2) → cert-manager (-1) → task
 **no manual `kubectl apply`** — git is the source of truth.
 
 ## 6. DNS + TLS
+This deploy serves **two hosts** (see `manifests/overlays/prod/kustomization.yaml`):
+`onyedikachi-capston.st-pardon.com` (frontend + same-origin `/api`) and `api.st-pardon.com`
+(backend, direct). Each gets its own Let's Encrypt cert.
 ```bash
 kubectl -n ingress-nginx get svc ingress-nginx-controller   # note EXTERNAL-IP (node IP via klipper)
-# At your registrar: A record  taskapp.<your-domain>  ->  that IP
-kubectl -n taskapp get certificate                          # taskapp-tls -> READY=True
-curl -vI https://taskapp.<your-domain>                      # valid Let's Encrypt cert, HTTP 200
+# At your registrar, point BOTH hosts at that IP:
+#   A  onyedikachi-capston.st-pardon.com  ->  <node IP>
+#   A  api.st-pardon.com                  ->  <node IP>
+kubectl -n taskapp get certificate          # taskapp-tls AND taskapp-api-tls -> READY=True
+curl -vI https://onyedikachi-capston.st-pardon.com          # frontend: valid LE cert, HTTP 200
+curl -vI https://api.st-pardon.com                          # backend:  valid LE cert, HTTP 200
 ```
+> **Gotcha (already fixed in the manifests):** under the namespace's default-deny NetworkPolicy,
+> the ACME HTTP-01 solver pod must carry `app.kubernetes.io/part-of=taskapp` or ingress-nginx
+> can't reach it and the challenge fails with `wrong status code '502'`. The Issuer's
+> `solvers.http01.ingress.podTemplate` stamps that label — keep it. If certs ever stick at
+> `pending`, `kubectl -n taskapp delete challenge --all` forces a fresh solver pod.
 
 ---
 

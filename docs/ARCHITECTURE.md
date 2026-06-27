@@ -3,24 +3,26 @@
 ## 1. Topology
 
 ```
-                          Internet
-                             │  DNS A: taskapp.<domain> ──▶ node public IP
-                             ▼
-                    ┌──────────────────┐  OCI NSG: 80/443 world · 22/6443 operator-only
-                    │  ingress-nginx    │  (klipper servicelb binds 80/443 on node IPs)
-                    │  TLS terminated   │◀── cert-manager + Let's Encrypt (HTTP-01)
-                    └────────┬──────────┘
-              path /         │          path /api
-        ┌──────────────┐     │     ┌──────────────┐
-        │  frontend    │◀────┴────▶│   backend    │   2 replicas each, spread across nodes
-        │  Service :80 │           │ Service :8000│
-        └──────┬───────┘           └──────┬───────┘
-               ▼                          ▼
-        frontend Pods               backend Pods ──▶ ┌────────────────┐
-        (node A, node B)            (node A, node B)  │ postgres (STS) │ PVC (local-path)
-                                                      │  Service :5432 │ on one node
-                                                      └────────────────┘
+                                 Internet
+   DNS A  onyedikachi-capston.st-pardon.com ─┐      ┌─ DNS A  api.st-pardon.com
+             (frontend + same-origin /api)    └──┬───┘   (backend, direct)
+                                         both ──▶ │ node public IP
+                            ┌───────────────────────────────────┐ OCI NSG: 80/443 world,
+                            │            ingress-nginx            │ 22/6443 operator-only
+                            │  TLS terminated, 2 certs            │◀─ cert-manager + Let's
+                            └──┬───────────────┬──────────────┬──┘   Encrypt (HTTP-01)
+            host=frontend  /  │           /api │              │  host=api  /
+                ┌─────────────▼──┐         ┌───▼──────────────▼──┐
+                │   frontend     │         │      backend         │ 2 replicas each,
+                │  Service :80   │         │   Service :5000      │ spread across nodes
+                └────────┬───────┘         └──────────┬──────────┘
+                         ▼                            ▼
+                frontend Pods (A,B)          backend Pods (A,B) ──▶ ┌────────────────┐
+                                                                    │ postgres (STS) │ PVC
+                                                                    │  Service :5432 │ local-path
+                                                                    └────────────────┘
 
+  certs:  taskapp-tls (frontend host) + taskapp-api-tls (api host) — both Let's Encrypt prod
   Nodes:  phoenix-server (k3s control-plane, schedulable) + phoenix-worker-1/2 (agents)
   GitOps: Argo CD (argocd ns) reconciles ingress-nginx, cert-manager, taskapp from this repo
 ```
@@ -35,11 +37,17 @@
   by the Ansible hardening role so k3s networking works; the NSG is the real firewall.
 
 ## 3. Request flow
-DNS resolves `taskapp.<domain>` to a node's public IP. ingress-nginx (exposed on `:443` via k3s
-klipper servicelb) terminates TLS with the cert-manager-issued Let's Encrypt cert, then routes by
-path on one host: `/` → `taskapp-frontend:80`, `/api` → `taskapp-backend:8000` (same-origin, so no
-CORS). The backend reads/writes `taskapp-postgres:5432` (headless Service → StatefulSet pod, data
-on a `local-path` PVC).
+Two DNS A records point at the same node public IP. ingress-nginx (exposed on `:443` via k3s
+klipper servicelb) terminates TLS — **two Let's Encrypt certs**, one per host — then routes:
+
+- **`onyedikachi-capston.st-pardon.com`** (the app, served same-origin so there's **no CORS**):
+  `/` → `taskapp-frontend:80`, `/api` → `taskapp-backend:5000`.
+- **`api.st-pardon.com`** (the backend exposed directly for API clients / testing):
+  `/` → `taskapp-backend:5000`.
+
+The backend reads/writes `taskapp-postgres:5432` (headless Service → StatefulSet pod, data on a
+`local-path` PVC). Both host/cert mappings live in `manifests/overlays/prod/kustomization.yaml`;
+the base `ingress.yaml` ships the single-host template that the overlay patches.
 
 ## 4. The single-server assumptions I fixed ← graders look here
 
@@ -60,8 +68,13 @@ on a `local-path` PVC).
   natively; overlay isolates env-specifics (image tags, domain).
 - **ingress-nginx over k3s Traefik** — disabled Traefik (`--disable traefik`); nginx for path-based
   same-origin routing and first-class cert-manager integration. Kept klipper servicelb for the LB.
+  The overlay adds a second host (`api.st-pardon.com`) straight to the backend so the API is also
+  reachable on its own subdomain + cert, independent of the same-origin app path.
 - **NetworkPolicy enforced by k3s' built-in kube-router** — no Calico needed; default-deny + a rule
-  for the ACME HTTP-01 solver so cert issuance still works under deny.
+  for the ACME HTTP-01 solver so cert issuance still works under deny. Subtlety: kustomize
+  `commonLabels` injects `part-of=taskapp` into the solver policy's *selector*, but cert-manager's
+  solver pod isn't built by kustomize — so the Issuer's `solvers.http01.ingress.podTemplate` stamps
+  that label on the solver pod; without it the policy doesn't match and HTTP-01 returns 502.
 - **Secrets via Sealed Secrets (encrypted, in git)** — `manifests/seal-secret.sh` + the
   sealed-secrets controller turn the real Secret into a committable `SealedSecret` only the cluster
   can decrypt, so git holds the full desired state. The plain out-of-band `kubectl apply` of a
