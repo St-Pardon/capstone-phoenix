@@ -8,9 +8,9 @@ resources:
 # your CI publishes to GHCR (the CI-bumps-this-tag flow is the brief's stretch goal).
 images:
   - name: ghcr.io/ts-a-devops/taskapp-backend
-    newTag: REPLACE_WITH_SHA_OR_SEMVER
+    newTag: 5d6b8fc
   - name: ghcr.io/ts-a-devops/taskapp-frontend
-    newTag: REPLACE_WITH_SHA_OR_SEMVER
+    newTag: 26da2b0
 
 # Environment knobs — set your real domain and ACME email here.
 patches:
@@ -20,14 +20,14 @@ patches:
     patch: |-
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: taskapp.CHANGEME.dev
+        value: onyedikachi-capston.st-pardon.com
       - op: replace
         path: /spec/rules/0/host
-        value: taskapp.CHANGEME.dev
+        value: onyedikachi-capston.st-pardon.com
   - target:
       kind: Issuer
       name: letsencrypt-prod
     patch: |-
       - op: replace
         path: /spec/acme/email
-        value: CHANGEME@example.com
+        value: d_pardon@live.com
