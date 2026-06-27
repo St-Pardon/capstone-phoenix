@@ -71,4 +71,7 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-              add: ["NET_BIND_SERVICE"]
+              # The stock nginx image's root master binds :80 (NET_BIND_SERVICE), chowns its cache
+              # dirs (CHOWN), and drops workers to the nginx user (SETUID/SETGID). Dropping these
+              # makes nginx abort at startup. (Alternative: nginx-unprivileged image — see note above.)
+              add: ["NET_BIND_SERVICE", "CHOWN", "SETUID", "SETGID"]
