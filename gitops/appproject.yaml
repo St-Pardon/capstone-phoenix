@@ -14,7 +14,7 @@ spec:
   description: Phoenix capstone — taskapp + platform add-ons
   sourceRepos:
     # TODO: replace with YOUR fork URL (same value used in the Applications).
-    - https://github.com/CHANGEME/capstone-phoenix.git
+    - https://github.com/St-Pardon/capstone-phoenix.git
     - https://kubernetes.github.io/ingress-nginx
     - https://charts.jetstack.io
     - https://bitnami-labs.github.io/sealed-secrets

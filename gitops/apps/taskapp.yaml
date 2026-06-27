@@ -11,7 +11,7 @@ spec:
   project: phoenix
   source:
     # TODO: point at YOUR fork.
-    repoURL: https://github.com/CHANGEME/capstone-phoenix.git
+    repoURL: https://github.com/St-Pardon/capstone-phoenix.git
     targetRevision: main
     path: manifests/overlays/prod
   destination:
