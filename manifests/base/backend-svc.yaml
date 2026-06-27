@@ -9,5 +9,22 @@ spec:
     app.kubernetes.io/name: backend
   ports:
     - name: http
-      port: 8000
+      port: 5000
+      targetPort: http
+---
+# Alias Service literally named "backend" — the frontend image's nginx hardcodes
+# `proxy_pass http://backend:5000` (a leftover from its docker-compose origins) and refuses to
+# start until that name resolves. Same selector/target as taskapp-backend.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+spec:
+  selector:
+    app.kubernetes.io/name: backend
+  ports:
+    - name: http
+      port: 5000
       targetPort: http

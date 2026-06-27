@@ -23,7 +23,7 @@ spec:
               service:
                 name: taskapp-backend
                 port:
-                  number: 8000
+                  number: 5000
           - path: /
             pathType: Prefix
             backend:

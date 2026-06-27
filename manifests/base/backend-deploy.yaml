@@ -41,7 +41,8 @@ spec:
           image: ghcr.io/ts-a-devops/taskapp-backend
           ports:
             - name: http
-              containerPort: 8000
+              # The app runs gunicorn --bind 0.0.0.0:5000 (EXPOSE 5000); health is /api/health.
+              containerPort: 5000
           envFrom:
             - configMapRef:
                 name: taskapp-config
