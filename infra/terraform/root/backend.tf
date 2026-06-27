@@ -9,13 +9,13 @@
 #   export AWS_SECRET_ACCESS_KEY=<customer secret secret key>
 terraform {
   backend "s3" {
-    bucket = "phoenix-tfstate"            # = bootstrap output `state_bucket_name`
+    bucket = "capstone-phoenix-tfstate"            # = bootstrap output `state_bucket_name`
     key    = "phoenix/terraform.tfstate"
-    region = "uk-london-1"                # any value; OCI ignores it (skip_region_validation)
+    region = "eu-paris-1"                # any value; OCI ignores it (skip_region_validation)
 
     endpoints = {
       # = bootstrap output `s3_compat_endpoint` — replace <NAMESPACE> and the region:
-      s3 = "https://<NAMESPACE>.compat.objectstorage.uk-london-1.oraclecloud.com"
+      s3 = "https://axc8mbafw5e3.compat.objectstorage.eu-paris-1.oraclecloud.com"
     }
 
     use_path_style              = true
@@ -23,6 +23,7 @@ terraform {
     skip_credentials_validation = true
     skip_metadata_api_check     = true
     skip_requesting_account_id  = true
+    skip_s3_checksum            = true
     # use_lockfile = true   # enable if OCI S3-compat honors conditional-write locks; else solo-operator workflow
   }
 }
