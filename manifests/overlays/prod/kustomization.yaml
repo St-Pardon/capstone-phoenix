@@ -24,6 +24,27 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: onyedikachi-capston.st-pardon.com
+      # Second host: expose the backend directly at api.st-pardon.com (its own TLS cert).
+      # Frontend stays same-origin on the host above, so no CORS is involved.
+      - op: add
+        path: /spec/rules/-
+        value:
+          host: api.st-pardon.com
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: taskapp-backend
+                    port:
+                      number: 5000
+      - op: add
+        path: /spec/tls/-
+        value:
+          hosts:
+            - api.st-pardon.com
+          secretName: taskapp-api-tls
   - target:
       kind: Issuer
       name: letsencrypt-prod
