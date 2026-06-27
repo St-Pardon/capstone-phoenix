@@ -8,9 +8,9 @@ resources:
 # your CI publishes to GHCR (the CI-bumps-this-tag flow is the brief's stretch goal).
 images:
   - name: ghcr.io/ts-a-devops/taskapp-backend
-    newTag: REPLACE_WITH_SHA_OR_SEMVER
+    newTag: 5d6b8fc
   - name: ghcr.io/ts-a-devops/taskapp-frontend
-    newTag: REPLACE_WITH_SHA_OR_SEMVER
+    newTag: 26da2b0
 
 # Environment knobs — set your real domain and ACME email here.
 patches:
