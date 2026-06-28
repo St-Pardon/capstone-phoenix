@@ -2,7 +2,7 @@
 
 Proof that the Phoenix TaskApp runs as the brief requires — live, HTTPS, multi-node, GitOps-owned.
 Cluster shots were produced by the (local, gitignored) `capture.sh` helper; app shots are the live
-site. All captured **2026-06-27**.
+site. Core shots captured **2026-06-27**; the Grafana observability shots (§6) **2026-06-28**.
 
 ---
 
@@ -78,11 +78,27 @@ GitOps, scraping the kubelet / node-exporter / kube-state-metrics, and that Graf
 covers **cluster/node/Kubernetes-state** signals (the taskapp app pods are deliberately not scraped —
 default-deny NetworkPolicy; see `docs/ARCHITECTURE.md §6`).
 
-<!-- placeholder: capture after sync via `kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80`, login admin/admin -->
-![Grafana cluster dashboard on live metrics](grafana-dashboard.png)
+**Cluster-wide compute** — *Kubernetes / Compute Resources / Cluster*: live CPU/memory broken down
+by namespace (`argocd`, `taskapp`, `monitoring`, `ingress-nginx`, …), proving Prometheus is scraping
+the whole cluster:
 
-> Optionally pair with a Prometheus `/targets` shot showing kubelet/node-exporter/kube-state-metrics
-> all `UP`, to prove the scrape pipeline end-to-end.
+![Grafana — cluster compute resources](grafana-cluster-compute.png)
+
+**Per-node host metrics** — *Node Exporter / Nodes* for worker `10.0.1.30:9100`: CPU, load average,
+memory (21.4% used), disk I/O and disk space — the node-exporter DaemonSet reporting real host
+telemetry from each node:
+
+![Grafana — node-exporter host metrics](grafana-node-exporter.png)
+
+**Per-pod resource usage** — *Compute Resources / Namespace (Pods)*: live per-pod CPU/memory curves
+(kube-state-metrics + cAdvisor), here for the `argocd` control plane:
+
+![Grafana — namespace pod resources](grafana-namespace-pods.png)
+
+**Pod networking** — *Kubernetes / Networking / Pod*: live receive/transmit bandwidth and packet
+rates, proving network-level scrape signals are flowing:
+
+![Grafana — pod networking](grafana-pod-networking.png)
 
 ---
 
