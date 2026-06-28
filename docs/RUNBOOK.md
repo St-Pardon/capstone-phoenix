@@ -132,6 +132,33 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:909
 
 ---
 
+## 8. Postgres backups — OCI Object Storage
+A `CronJob` (`taskapp-pg-backup`, daily 02:00 UTC) runs `pg_dump | gzip` and uploads to an OCI
+bucket via `mc`. Backups survive node/cluster loss (the `local-path` PV does not).
+
+```bash
+# one-time: create the bucket (OCI CLI or console)
+oci os bucket create --name phoenix-pg-backups --compartment-id <compartment_ocid>
+
+# one-time: seal the S3 creds (OCI Customer Secret Keys) so they live encrypted in git
+cp manifests/base/pg-backup-s3.example.yaml /tmp/pg-backup-s3.yaml    # fill S3_ACCESS_KEY/S3_SECRET_KEY
+manifests/seal-secret.sh /tmp/pg-backup-s3.yaml manifests/base/pg-backup-s3-sealedsecret.yaml
+# uncomment the pg-backup-s3-sealedsecret.yaml line in manifests/base/kustomization.yaml, commit, push
+
+# run a backup on demand (don't wait for 02:00) and watch it
+kubectl -n taskapp create job --from=cronjob/taskapp-pg-backup pg-backup-manual
+kubectl -n taskapp logs job/pg-backup-manual -f       # "uploaded taskapp-<ts>.sql.gz -> phoenix-pg-backups"
+```
+
+**Restore test (proves the backup is usable — non-destructive, uses a throwaway DB):**
+```bash
+export S3_ENDPOINT=https://<ns>.compat.objectstorage.eu-paris-1.oraclecloud.com \
+       S3_BUCKET=phoenix-pg-backups S3_ACCESS_KEY=... S3_SECRET_KEY=...
+manifests/restore-postgres.sh            # pulls the newest object, restores into restore_verify, \dt, drops it
+```
+
+---
+
 ## Day-2 operations
 > Argo has `selfHeal: true` — make changes **in git**, not with `kubectl`, or they get reverted.
 

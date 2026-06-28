@@ -1,0 +1,80 @@
+# Nightly Postgres backup -> OCI Object Storage (S3-compat).
+# One non-root container on postgres:16-alpine: pg_dump | gzip, then upload with a pinned `mc`
+# static binary (MinIO client speaks OCI's S3-compat API cleanly — no aws-chunked 501). DB creds
+# come from the same SealedSecret the app uses (taskapp-secret); the S3 creds are their own
+# SealedSecret (pg-backup-s3). Trigger on demand with:
+#   kubectl -n taskapp create job --from=cronjob/taskapp-pg-backup pg-backup-manual
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: taskapp-pg-backup
+  labels:
+    app.kubernetes.io/name: backup
+spec:
+  schedule: "0 2 * * *"          # 02:00 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: backup
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              command: ["/bin/sh", "-ceu"]
+              args:
+                - |
+                  TS=$(date -u +%Y%m%dT%H%M%SZ)
+                  FILE="taskapp-${TS}.sql.gz"
+                  echo "dumping $POSTGRES_DB from $POSTGRES_HOST ..."
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h "$POSTGRES_HOST" -U "$POSTGRES_USER" \
+                    -d "$POSTGRES_DB" --no-owner --no-privileges | gzip -9 > "/tmp/$FILE"
+                  echo "dump size: $(wc -c < /tmp/$FILE) bytes"
+                  case "$(uname -m)" in aarch64) M=arm64;; x86_64) M=amd64;; *) M=amd64;; esac
+                  wget -qO /tmp/mc \
+                    "https://dl.min.io/client/mc/release/linux-${M}/archive/mc.${MC_RELEASE}"
+                  chmod +x /tmp/mc
+                  /tmp/mc --config-dir /tmp/mc-cfg alias set oci \
+                    "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
+                  /tmp/mc --config-dir /tmp/mc-cfg cp "/tmp/$FILE" "oci/${S3_BUCKET}/${FILE}"
+                  echo "uploaded ${FILE} -> ${S3_BUCKET}"
+              env:
+                - name: MC_RELEASE
+                  value: "RELEASE.2025-08-13T08-35-41Z"   # pinned mc client (no :latest)
+              envFrom:
+                - configMapRef:
+                    name: taskapp-config          # POSTGRES_HOST / POSTGRES_DB
+                - secretRef:
+                    name: taskapp-secret          # POSTGRES_USER / POSTGRES_PASSWORD
+                - secretRef:
+                    name: pg-backup-s3            # S3_ENDPOINT / S3_BUCKET / S3_ACCESS_KEY / S3_SECRET_KEY
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 300m
+                  memory: 192Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}

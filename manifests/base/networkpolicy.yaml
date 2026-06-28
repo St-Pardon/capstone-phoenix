@@ -28,6 +28,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: migrate
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backup
       ports:
         - protocol: TCP
           port: 5432
