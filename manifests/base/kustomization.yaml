@@ -25,4 +25,4 @@ resources:
   - hpa.yaml
   - taskapp-sealedsecret.yaml
   - pg-backup-cronjob.yaml
-  # - pg-backup-s3-sealedsecret.yaml   # uncomment after sealing the S3 creds (RUNBOOK §8)
+  - pg-backup-s3-sealedsecret.yaml
