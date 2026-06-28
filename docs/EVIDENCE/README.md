@@ -2,7 +2,8 @@
 
 Proof that the Phoenix TaskApp runs as the brief requires — live, HTTPS, multi-node, GitOps-owned.
 Cluster shots were produced by the committed `capture.sh` helper; app shots are the live site.
-Core shots captured **2026-06-27**; Grafana (§6), KubeView (§7) and OCI infra (§8) **2026-06-28**.
+Core shots captured **2026-06-27**; Grafana (§6), KubeView (§7), OCI infra (§8) and pg-backup (§9)
+**2026-06-28**.
 
 ---
 
@@ -148,6 +149,14 @@ security group, internet gateway and DNS zones:
 
 ---
 
-### Reproduce
+## 9. Postgres backup + restore test (stretch)
+
+The nightly `taskapp-pg-backup` CronJob run on demand → `pg_dump | gzip` uploaded to the
+`phoenix-pg-backups` OCI bucket (`dump size: 1284 bytes`, uploaded), then `restore-postgres.sh`
+pulls it into a throwaway `restore_verify` DB and lists the real tables (`alembic_version`, `tasks`,
+`users`) → **`restore test OK`** — proving the backup is **restorable**, not just present. (The S3
+credentials in the shell command are redacted.)
+
+![Postgres backup + verified restore](pg-backup-restore.png)
 The capture helper (`capture.sh`, committed in this dir) regenerates the cluster shots:
 `./capture.sh safe | persist | zerodowntime | hpa | failover`.

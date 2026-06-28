@@ -122,7 +122,7 @@ This is the heart of it. Everything in the K8s lesson, done *for real*, plus har
 - [x] CI that builds/pushes a new image and **bumps the tag in the GitOps repo** (full
       git-driven deploy, mirroring your `cd.yaml`).
 - [x] Sealed Secrets / External Secrets so the Secret can live in git safely.
-- [ ] Automated Postgres backup (CronJob → object storage) + a documented restore test.
+- [x] Automated Postgres backup (CronJob → object storage) + a documented restore test.
 - [ ] Multi-replica HA Postgres or a managed DB, with a written trade-off analysis.
 
 ---
