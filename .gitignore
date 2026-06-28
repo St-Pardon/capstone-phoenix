@@ -32,10 +32,6 @@ charts/*.tgz
 # personal/local notes (not deliverables) — e.g. cloud setup cheat-sheets
 notes/
 
-# evidence-capture helper scripts — local tooling, not a graded deliverable.
-# The evidence artifacts they produce (*.txt/*.log/*.png under docs/EVIDENCE/) DO get committed.
-docs/EVIDENCE/*.sh
-
 # AWS study mirror — kept local for OCI-vs-AWS comparison, never deployed/graded
 infra-aws/
 
