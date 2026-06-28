@@ -1,8 +1,8 @@
 # EVIDENCE
 
 Proof that the Phoenix TaskApp runs as the brief requires — live, HTTPS, multi-node, GitOps-owned.
-Cluster shots were produced by the (local, gitignored) `capture.sh` helper; app shots are the live
-site. Core shots captured **2026-06-27**; the Grafana observability shots (§6) **2026-06-28**.
+Cluster shots were produced by the committed `capture.sh` helper; app shots are the live site.
+Core shots captured **2026-06-27**; Grafana (§6) and the KubeView bonus (§7) **2026-06-28**.
 
 ---
 
@@ -102,6 +102,17 @@ rates, proving network-level scrape signals are flowing:
 
 ---
 
+## 7. Bonus — KubeView cluster map
+
+[KubeView](https://github.com/benc-uk/kubeview) (v2.2.0, arm64) rendering the live cluster — a
+graph view of the `taskapp` namespace: frontend/backend Deployments → ReplicaSets → Pods, the
+Postgres StatefulSet + PVC, Services and the Ingress, with their relationships. A personal extra,
+applied from `manifests/extras/kubeview.yaml` (outside the Argo-managed base) and removed afterward.
+
+![KubeView cluster map](kubeview-cluster-map.png)
+
+---
+
 ### Reproduce
-The capture helper (`capture.sh`, local-only / gitignored) regenerates the cluster shots:
+The capture helper (`capture.sh`, committed in this dir) regenerates the cluster shots:
 `./capture.sh safe | persist | zerodowntime | hpa | failover`.
