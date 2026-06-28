@@ -105,8 +105,11 @@ kubectl -n monitoring get pods                         # all Running/Completed; 
 kubectl -n argocd get app kube-prometheus-stack        # Synced + Healthy
 
 # --- Grafana ---
+# The chart generates a random admin password into a Secret (no credential is committed to git).
+GRAFANA_PW=$(kubectl -n monitoring get secret kube-prometheus-stack-grafana \
+  -o jsonpath='{.data.admin-password}' | base64 -d); echo "grafana admin password: $GRAFANA_PW"
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
-# open http://localhost:3000  ->  login admin / admin  (demo-grade credential)
+# open http://localhost:3000  ->  login admin / <the password printed above>
 # Dashboards -> e.g. "Kubernetes / Compute Resources / Cluster" or "Node Exporter / Nodes"
 
 # --- Prometheus (verify scrape targets are UP) ---
@@ -116,8 +119,9 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:909
 ```
 > **Healthy looks like:** every pod in `monitoring` Running (node-exporter is a DaemonSet — one per
 > node, so 3), the `prometheus-kube-prometheus-stack-prometheus-0` and Grafana pods Ready, and the
-> Prometheus `/targets` page showing the cluster/node/kube-state jobs all green. The admin password
-> is **demo-grade** (`admin`) — set via `grafana.adminPassword` in the app values.
+> Prometheus `/targets` page showing the cluster/node/kube-state jobs all green. The Grafana admin
+> password is **chart-generated** (random) and read from the `kube-prometheus-stack-grafana` Secret
+> at login — no credential is committed to git (consistent with the Sealed Secrets posture).
 
 ---
 

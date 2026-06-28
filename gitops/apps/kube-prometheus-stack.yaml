@@ -43,7 +43,9 @@ spec:
         grafana:
           enabled: true
           replicas: 1
-          adminPassword: admin          # DEMO-GRADE capstone credential only — never reuse in prod.
+          # No adminPassword here — committing a plaintext credential to git would contradict the
+          # Sealed Secrets posture. The chart auto-generates a random admin password into the
+          # Secret `kube-prometheus-stack-grafana`; retrieve it at login time (see RUNBOOK §7).
           persistence:
             enabled: false              # dashboards are provisioned by the chart; no PVC needed
           # Keep the bundled default dashboards — they ARE the observability evidence value.
