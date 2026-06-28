@@ -106,8 +106,9 @@ This is the heart of it. Everything in the K8s lesson, done *for real*, plus har
       that enforces policy — document your choice.)
 - [x] **PodDisruptionBudget** + graceful shutdown (`terminationGracePeriodSeconds`, SIGTERM
       handling) so node drains don't drop the app.
-- [ ] **Observability**: metrics-server + a dashboard (kube-prometheus-stack, or at minimum
-      Grafana/Prometheus) showing CPU/mem/replicas/request rate. Screenshots in `docs/`.
+- [x] **Observability**: kube-prometheus-stack (Prometheus + Grafana + Alertmanager + node-exporter
+      + kube-state-metrics) deployed via GitOps, showing live CPU/mem/network. Screenshots in
+      `docs/EVIDENCE/` §6.
 - [x] **Resource hardening**: `securityContext` (runAsNonRoot, readOnlyRootFilesystem where
       possible, drop capabilities), `seccompProfile: RuntimeDefault`.
 
