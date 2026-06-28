@@ -46,19 +46,26 @@ export KUBECONFIG="$PWD/kubeconfig"
 kubectl get nodes -o wide                         # server + 2 workers = Ready
 ```
 
-## 4. Provide the Secret — pick one
-Fill real values first: `cp manifests/base/secret.example.yaml /tmp/secret.yaml` (set
-`POSTGRES_PASSWORD`, `SECRET_KEY`, `DATABASE_URL`).
+## 4. Provide the Secret
+**This deployment uses Sealed Secrets (Option A) — the encrypted Secret lives in git
+(`manifests/base/taskapp-sealedsecret.yaml`), no plaintext anywhere.** Fill real values first:
+`cp manifests/base/secret.example.yaml /tmp/secret.yaml` (set all six keys: `POSTGRES_USER/PASSWORD`,
+`DATABASE_USER/PASSWORD`, `SECRET_KEY`, `DATABASE_URL`).
 
-**Option A — Sealed Secrets (git-native, recommended).** Do this *after* step 5 brings up the
-sealed-secrets controller, then git holds the encrypted Secret:
+**Option A — Sealed Secrets (git-native, what this repo ships).** Do this *after* step 5 brings up
+the sealed-secrets controller, then git holds the encrypted Secret:
 ```bash
 manifests/seal-secret.sh /tmp/secret.yaml      # -> manifests/base/taskapp-sealedsecret.yaml
-# add taskapp-sealedsecret.yaml to manifests/base/kustomization.yaml resources, commit, push
-# Argo syncs it; the controller decrypts it in-cluster into the taskapp-secret Secret
+# (it is already in manifests/base/kustomization.yaml resources). Commit + push.
+# Argo syncs it; the controller decrypts it in-cluster into the taskapp-secret Secret.
 ```
+> Re-sealing / first cutover: if a plaintext `taskapp-secret` already exists (e.g. an earlier
+> out-of-band apply), the controller refuses to adopt it — delete that Secret once and
+> `kubectl -n kube-system rollout restart deploy/sealed-secrets-controller`; it recreates the
+> Secret from the SealedSecret and owns it (ownerReference kind=SealedSecret).
 
-**Option B — out-of-band (simplest).** Apply a plain Secret by hand; Argo ignores it:
+**Option B — out-of-band (bootstrap-only fallback).** A plain Secret applied by hand; Argo ignores
+it. Only used to bring the app up *before* the controller exists; superseded by Option A:
 ```bash
 kubectl create namespace taskapp
 kubectl apply -n taskapp -f /tmp/secret.yaml
