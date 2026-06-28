@@ -72,7 +72,8 @@ kubectl -n argocd rollout status deploy/argocd-repo-server
 kubectl apply -f ../../gitops/appproject.yaml    # scoped project (must exist first)
 kubectl apply -f ../../gitops/root-app.yaml       # app-of-apps
 ```
-Argo now syncs by sync-wave: **ingress-nginx (-2) → cert-manager (-1) → taskapp (0)**. From here,
+Argo now syncs by sync-wave: **ingress-nginx (-2) → cert-manager (-1) → taskapp (0)**, with
+**kube-prometheus-stack (0)** alongside (independent — see §7). From here,
 **no manual `kubectl apply`** — git is the source of truth.
 
 ## 6. DNS + TLS
@@ -93,6 +94,34 @@ curl -vI https://api.st-pardon.com                          # backend:  valid LE
 > can't reach it and the challenge fails with `wrong status code '502'`. The Issuer's
 > `solvers.http01.ingress.podTemplate` stamps that label — keep it. If certs ever stick at
 > `pending`, `kubectl -n taskapp delete challenge --all` forces a fresh solver pod.
+
+## 7. Observability — access Grafana & check Prometheus targets
+The `kube-prometheus-stack` Argo app brings up Prometheus + Grafana + Alertmanager + node-exporter +
+kube-state-metrics in the `monitoring` namespace (tuned down for ARM — see
+`docs/ARCHITECTURE.md §6`). It's not exposed via Ingress; reach it with a port-forward.
+```bash
+# Wait for the stack to be healthy
+kubectl -n monitoring get pods                         # all Running/Completed; operator + grafana up
+kubectl -n argocd get app kube-prometheus-stack        # Synced + Healthy
+
+# --- Grafana ---
+# The chart generates a random admin password into a Secret (no credential is committed to git).
+GRAFANA_PW=$(kubectl -n monitoring get secret kube-prometheus-stack-grafana \
+  -o jsonpath='{.data.admin-password}' | base64 -d); echo "grafana admin password: $GRAFANA_PW"
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
+# open http://localhost:3000  ->  login admin / <the password printed above>
+# Dashboards -> e.g. "Kubernetes / Compute Resources / Cluster" or "Node Exporter / Nodes"
+
+# --- Prometheus (verify scrape targets are UP) ---
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
+# open http://localhost:9090/targets  ->  kubelet, node-exporter, kube-state-metrics = UP
+# (the taskapp app pods are intentionally NOT scraped — default-deny NetworkPolicy; see §6)
+```
+> **Healthy looks like:** every pod in `monitoring` Running (node-exporter is a DaemonSet — one per
+> node, so 3), the `prometheus-kube-prometheus-stack-prometheus-0` and Grafana pods Ready, and the
+> Prometheus `/targets` page showing the cluster/node/kube-state jobs all green. The Grafana admin
+> password is **chart-generated** (random) and read from the `kube-prometheus-stack-grafana` Secret
+> at login — no credential is committed to git (consistent with the Sealed Secrets posture).
 
 ---
 

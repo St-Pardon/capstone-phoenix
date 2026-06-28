@@ -1,0 +1,118 @@
+# Observability: kube-prometheus-stack (Prometheus + Grafana + Alertmanager + node-exporter +
+# kube-state-metrics). sync-wave "0" — this stack is INDEPENDENT of the taskapp (it doesn't scrape
+# the app pods; the taskapp namespace's default-deny NetworkPolicy intentionally blocks that, see
+# docs/ARCHITECTURE.md §Observability). It bundles its own CRDs, so it has no ordering dependency on
+# the wave -2/-1 platform controllers; the default wave is fine.
+#
+# Tuned DOWN for a small free-tier OCI Ampere A1 (aarch64) cluster — every component is pinned to
+# modest requests/limits and persistence is OFF (emptyDir) to avoid PVC pressure on the single
+# local-path provisioner. All images in this chart are multi-arch (arm64-ok); no nodeSelectors are
+# set so nothing breaks scheduling on the ARM nodes.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: phoenix
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 87.3.0   # verified 2026-06-28 against the prometheus-community helm repo index
+    helm:
+      values: |
+        # --- Prometheus ---
+        prometheus:
+          prometheusSpec:
+            replicas: 1
+            retention: 2d
+            retentionSize: 1GB          # cap on-disk series so emptyDir can't fill the node
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+            # No storageSpec => emptyDir. Metrics are NOT durable across pod restarts — acceptable
+            # for a demo and avoids a PVC on the local-path provisioner. retention 2d / 1GB bounds it.
+
+        # --- Grafana (the evidence surface) ---
+        grafana:
+          enabled: true
+          replicas: 1
+          # No adminPassword here — committing a plaintext credential to git would contradict the
+          # Sealed Secrets posture. The chart auto-generates a random admin password into the
+          # Secret `kube-prometheus-stack-grafana`; retrieve it at login time (see RUNBOOK §7).
+          persistence:
+            enabled: false              # dashboards are provisioned by the chart; no PVC needed
+          # Keep the bundled default dashboards — they ARE the observability evidence value.
+          defaultDashboardsEnabled: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+        # --- Alertmanager ---
+        alertmanager:
+          enabled: true
+          alertmanagerSpec:
+            replicas: 1
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+              limits:
+                cpu: 100m
+                memory: 128Mi
+            # No storage block => emptyDir; alert/silence state isn't durable. Fine for a demo.
+
+        # --- prometheus-operator ---
+        prometheusOperator:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          # admissionWebhooks kept ENABLED: the kube-webhook-certgen patch image is multi-arch
+          # (arm64-ok), so the patch Jobs run fine on Ampere A1 and we keep PrometheusRule validation.
+
+        # --- node-exporter (DaemonSet: one per node) ---
+        nodeExporter:
+          enabled: true
+        prometheus-node-exporter:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+
+        # --- kube-state-metrics ---
+        kube-state-metrics:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The chart ships large CRDs; ServerSideApply avoids the kubectl client-side apply size limit.
+      - ServerSideApply=true

@@ -70,6 +70,22 @@ then the node is uncordoned:
 
 ---
 
+## 6. Observability — Grafana on live cluster metrics
+
+A bundled Grafana dashboard (e.g. *Kubernetes / Compute Resources / Cluster* or *Node Exporter /
+Nodes*) rendering **live** data from Prometheus — proving the kube-prometheus-stack is deployed via
+GitOps, scraping the kubelet / node-exporter / kube-state-metrics, and that Grafana reads it. This
+covers **cluster/node/Kubernetes-state** signals (the taskapp app pods are deliberately not scraped —
+default-deny NetworkPolicy; see `docs/ARCHITECTURE.md §6`).
+
+<!-- placeholder: capture after sync via `kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80`, login admin/admin -->
+![Grafana cluster dashboard on live metrics](grafana-dashboard.png)
+
+> Optionally pair with a Prometheus `/targets` shot showing kubelet/node-exporter/kube-state-metrics
+> all `UP`, to prove the scrape pipeline end-to-end.
+
+---
+
 ### Reproduce
 The capture helper (`capture.sh`, local-only / gitignored) regenerates the cluster shots:
 `./capture.sh safe | persist | zerodowntime | hpa | failover`.

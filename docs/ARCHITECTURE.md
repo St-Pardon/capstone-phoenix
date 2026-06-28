@@ -24,7 +24,7 @@
 
   certs:  taskapp-tls (frontend host) + taskapp-api-tls (api host) — both Let's Encrypt prod
   Nodes:  phoenix-server (k3s control-plane, schedulable) + phoenix-worker-1/2 (agents)
-  GitOps: Argo CD (argocd ns) reconciles ingress-nginx, cert-manager, taskapp from this repo
+  GitOps: Argo CD (argocd ns) reconciles ingress-nginx, cert-manager, taskapp, kube-prometheus-stack
 ```
 
 ## 2. Node & network
@@ -83,4 +83,34 @@ the base `ingress.yaml` ships the single-host template that the overlay patches.
   delete, not node loss). HA Postgres is a stretch goal, intentionally deferred.
 - **Remote state on OCI Object Storage (S3-compat)** — the OCI "equivalent" of S3; locking is the
   weak spot (no DynamoDB), handled by solo-operator discipline. See `infra-aws/` for the contrast.
-- **Argo scoped `AppProject`** over `default` — allowlists the source repo + the four namespaces.
+- **Argo scoped `AppProject`** over `default` — allowlists the source repo + the platform namespaces
+  (incl. `monitoring` for the observability stack).
+
+## 6. Observability — kube-prometheus-stack
+
+A single Argo Application (`gitops/apps/kube-prometheus-stack.yaml`, namespace `monitoring`) deploys
+the **kube-prometheus-stack** Helm chart: **Prometheus + Grafana + Alertmanager + node-exporter +
+kube-state-metrics**, plus the prometheus-operator and its CRDs.
+
+- **Why this chart:** it's the de-facto, batteries-included monitoring stack — one chart wires
+  Prometheus to scrape the kubelet/cAdvisor, node-exporter and kube-state-metrics, and ships
+  ready-made Grafana dashboards (cluster/node/pod/namespace views). That bundled dashboard set is the
+  observability *evidence* with zero custom wiring.
+- **Tuned for free-tier ARM:** the cluster is 3 × Ampere A1 (1 OCPU each), so every component is
+  pinned to modest requests/limits (Prometheus ~200m/512Mi req → 500m/1Gi limit; Grafana,
+  Alertmanager, operator, exporters all small), a **single replica** each, and **retention 2d / 1GB**.
+  Persistence is **OFF (emptyDir)** to avoid PVC pressure on the single `local-path` provisioner —
+  the trade-off is that metrics/alert state are **not durable across pod restarts**, which is
+  acceptable for a demo. All chart images are multi-arch (arm64-ok); no `nodeSelector` is set, so
+  nothing is pinned to an unavailable amd64 image.
+- **NetworkPolicy boundary (deliberate):** the `taskapp` namespace runs a **default-deny ingress**
+  NetworkPolicy, so Prometheus in `monitoring` **cannot** scrape the taskapp Flask pods — and we
+  don't try to. The Flask app exposes no `/metrics` endpoint anyway. Monitoring covers
+  **cluster/node/Kubernetes-state** signals (kubelet & cAdvisor, node-exporter, kube-state-metrics),
+  which is plenty for the observability deliverable. Poking a hole in the app's default-deny just to
+  scrape a non-existent endpoint would weaken the segmentation story for no benefit, so the boundary
+  stays. If app-level metrics were ever wanted, the right move would be a scoped `allow-from
+  monitoring` NetworkPolicy + a real `/metrics` endpoint + a `ServiceMonitor`, not removing
+  default-deny.
+- **GitOps fit:** sync-wave `"0"` — independent of the taskapp, bundles its own CRDs, so it has no
+  ordering dependency on the wave -2/-1 platform controllers.
