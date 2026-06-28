@@ -2,7 +2,7 @@
 
 Proof that the Phoenix TaskApp runs as the brief requires — live, HTTPS, multi-node, GitOps-owned.
 Cluster shots were produced by the committed `capture.sh` helper; app shots are the live site.
-Core shots captured **2026-06-27**; Grafana (§6) and the KubeView bonus (§7) **2026-06-28**.
+Core shots captured **2026-06-27**; Grafana (§6), KubeView (§7) and OCI infra (§8) **2026-06-28**.
 
 ---
 
@@ -102,14 +102,49 @@ rates, proving network-level scrape signals are flowing:
 
 ---
 
-## 7. Bonus — KubeView cluster map
+## 7. Bonus — KubeView cluster maps
 
-[KubeView](https://github.com/benc-uk/kubeview) (v2.2.0, arm64) rendering the live cluster — a
-graph view of the `taskapp` namespace: frontend/backend Deployments → ReplicaSets → Pods, the
-Postgres StatefulSet + PVC, Services and the Ingress, with their relationships. A personal extra,
-applied from `manifests/extras/kubeview.yaml` (outside the Argo-managed base) and removed afterward.
+[KubeView](https://github.com/benc-uk/kubeview) (v2.2.0, arm64) rendering the **live** cluster as a
+graph — a personal extra, applied from `manifests/extras/kubeview.yaml` (outside the Argo-managed
+base) and removed afterward.
 
-![KubeView cluster map](kubeview-cluster-map.png)
+**`taskapp`** — the app namespace: the Postgres StatefulSet + `taskapp-postgres-0`, the nightly
+`taskapp-pg-backup` CronJob, both `backend`/`frontend` Deployments → ReplicaSets → Pods and their
+Services (the `loadgen-*` pods are the HPA load test):
+
+![KubeView — taskapp namespace](kubeview-taskapp.png)
+
+The GitOps-managed platform namespaces, all reconciled by Argo CD:
+
+**`argocd`** — the Argo CD control plane:
+
+![KubeView — argocd](kubeview-argocd.png)
+
+**`monitoring`** — the full kube-prometheus-stack (Prometheus, Grafana, Alertmanager, node-exporter,
+kube-state-metrics, operator):
+
+![KubeView — monitoring](kubeview-monitoring.png)
+
+**`ingress-nginx`** and **`cert-manager`** — the ingress controller and the TLS issuer stack:
+
+![KubeView — ingress-nginx](kubeview-ingress-nginx.png)
+
+![KubeView — cert-manager](kubeview-cert-manager.png)
+
+---
+
+## 8. OCI infrastructure (Terraform-provisioned)
+
+OCI Resource Explorer (region **France Central / eu-paris-1**) showing the real, Terraform-built
+infrastructure backing the cluster — the compute instances, public IPs, boot volumes, and the
+`phoenix-pg-backups` Object Storage bucket:
+
+![OCI — compute + bucket](oci-resources-compute-bucket.png)
+
+…and the network layer — the `capstone-phoenix-vcn`, public subnet, route table, `nodes-nsg`
+security group, internet gateway and DNS zones:
+
+![OCI — network](oci-resources-network.png)
 
 ---
 
