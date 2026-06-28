@@ -33,15 +33,33 @@ spec:
           containers:
             - name: backup
               image: postgres:16-alpine
-              command: ["/bin/sh", "-ceu"]
+              command: ["/bin/sh", "-c"]
               args:
                 - |
+                  set -eu
+                  set -o pipefail          # else a failed pg_dump in `pg_dump | gzip` still exits 0
                   TS=$(date -u +%Y%m%dT%H%M%SZ)
                   FILE="taskapp-${TS}.sql.gz"
-                  echo "dumping $POSTGRES_DB from $POSTGRES_HOST ..."
+                  # A fresh ephemeral pod can RACE the CNI (kube-router) programming this pod's IP
+                  # into the NetworkPolicy allow-set, so its first seconds to postgres get refused.
+                  # Wait (retry ~60s) instead of dumping into the void.
+                  echo "waiting for ${POSTGRES_HOST}:5432 (CNI may lag for a fresh pod) ..."
+                  i=1
+                  while ! pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
+                    if [ "$i" -ge 30 ]; then
+                      echo "ERROR: ${POSTGRES_HOST}:5432 unreachable after ~60s — aborting (no upload)"; exit 1
+                    fi
+                    i=$((i+1)); sleep 2
+                  done
+                  echo "postgres reachable; dumping $POSTGRES_DB ..."
                   PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h "$POSTGRES_HOST" -U "$POSTGRES_USER" \
                     -d "$POSTGRES_DB" --no-owner --no-privileges | gzip -9 > "/tmp/$FILE"
-                  echo "dump size: $(wc -c < /tmp/$FILE) bytes"
+                  SIZE=$(wc -c < "/tmp/$FILE")
+                  echo "dump size: ${SIZE} bytes"
+                  # Guard: an empty gzip is ~20 bytes — never upload a dud.
+                  if [ "$SIZE" -lt 200 ]; then
+                    echo "ERROR: dump only ${SIZE} bytes — refusing to upload"; exit 1
+                  fi
                   case "$(uname -m)" in aarch64) M=arm64;; x86_64) M=amd64;; *) M=amd64;; esac
                   wget -qO /tmp/mc \
                     "https://dl.min.io/client/mc/release/linux-${M}/archive/mc.${MC_RELEASE}"
